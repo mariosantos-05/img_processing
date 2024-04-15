@@ -1,0 +1,14 @@
+[
+{
+  "directory": "/home/mario/projetos/img_processing/build",
+  "command": "/usr/bin/g++  -isystem /usr/local/include/opencv4 -g -o CMakeFiles/my_project.dir/src/main.cpp.o -c /home/mario/projetos/img_processing/src/main.cpp",
+  "file": "/home/mario/projetos/img_processing/src/main.cpp",
+  "output": "CMakeFiles/my_project.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/mario/projetos/img_processing/build",
+  "command": "/usr/bin/gcc  -isystem /usr/local/include/opencv4 -g -o CMakeFiles/my_project.dir/src/glad.c.o -c /home/mario/projetos/img_processing/src/glad.c",
+  "file": "/home/mario/projetos/img_processing/src/glad.c",
+  "output": "CMakeFiles/my_project.dir/src/glad.c.o"
+}
+]
