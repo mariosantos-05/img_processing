@@ -1,0 +1,3 @@
+/home/mario/projetos/img_processing/IPI/build/CMakeFiles/ler_YUV.dir
+/home/mario/projetos/img_processing/IPI/build/CMakeFiles/edit_cache.dir
+/home/mario/projetos/img_processing/IPI/build/CMakeFiles/rebuild_cache.dir

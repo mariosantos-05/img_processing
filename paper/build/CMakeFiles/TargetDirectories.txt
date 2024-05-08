@@ -1,0 +1,3 @@
+/home/mario/projetos/img_processing/paper/build/CMakeFiles/paper.dir
+/home/mario/projetos/img_processing/paper/build/CMakeFiles/edit_cache.dir
+/home/mario/projetos/img_processing/paper/build/CMakeFiles/rebuild_cache.dir
