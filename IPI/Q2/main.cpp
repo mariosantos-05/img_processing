@@ -6,7 +6,7 @@ using namespace cv;
 
 int main(int argc, char *argv[]) {
     
-    // Checking ig the program argumets passage is done right
+    // Checking if the program argumets passage is done right
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <image_path>" << std::endl;
         return -1;
