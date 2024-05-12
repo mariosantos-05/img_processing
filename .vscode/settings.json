@@ -1,6 +1,8 @@
 {
     "files.associations": {
-        "string.h": "c"
+        "string.h": "c",
+        "ostream": "cpp",
+        "iostream": "cpp"
     },
     "C_Cpp.dimInactiveRegions": false
 }

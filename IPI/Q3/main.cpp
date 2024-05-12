@@ -1,117 +1,12 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
-
 using namespace cv;
 
-void dftFunction(const Mat& input, Mat& output) {
-    // Convert input to floating point type
-    Mat floatInput;
-    input.convertTo(floatInput, CV_32F);
-
-    // Adding padding to the image (if it's not a power of 2)
-    Mat padded; 
-    int m = getOptimalDFTSize(floatInput.rows);
-    int n = getOptimalDFTSize(floatInput.cols);
-    copyMakeBorder(floatInput, padded, 0, m - floatInput.rows, 0, n - floatInput.cols, BORDER_CONSTANT, Scalar::all(0));
-
-    Mat planes[] = { Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F) }; 
-    Mat complexImage;
-    merge(planes, 2, complexImage); 
-
-    dft(complexImage, complexImage); 
-
-    // Compute the magnitude and switch to logarithmic scale
-    split(complexImage, planes); 
-    magnitude(planes[0], planes[1], planes[0]); 
-    Mat magnitudeImage = planes[0];
-
-    magnitudeImage += Scalar::all(1); // Switch to logarithmic scale
-    log(magnitudeImage, magnitudeImage);
-
-    // Crop the spectrum if it has an odd number of rows or columns
-    magnitudeImage = magnitudeImage(Rect(0, 0, magnitudeImage.cols & -2, magnitudeImage.rows & -2));
-
-    // Rearrange the quadrants of the Fourier image
-    int cx = magnitudeImage.cols / 2;
-    int cy = magnitudeImage.rows / 2;
-
-    // Create an ROI-per-quadrant
-    Mat q0(magnitudeImage, Rect(0, 0, cx, cy));  
-    Mat q1(magnitudeImage, Rect(cx, 0, cx, cy));
-    Mat q2(magnitudeImage, Rect(0, cy, cx, cy)); 
-    Mat q3(magnitudeImage, Rect(cx, cy, cx, cy)); 
-
-    // Swapping the quadrants
-    Mat tmp; 
-    q0.copyTo(tmp);
-    q3.copyTo(q0);
-    tmp.copyTo(q3);
-    q1.copyTo(tmp); 
-    q2.copyTo(q1);
-    tmp.copyTo(q2);
-
-    // Convert magnitudeImage to output
-    normalize(magnitudeImage, output, 0, 1, NORM_MINMAX); 
-}
-
-void high_Butterworth(const Mat image, Mat& output, int n, int D0, const std::vector<Point>& points) {
-    Mat input;
-    dftFunction(image, input);
-
-    // The origin
-    int cx = input.cols / 2;
-    int cy = input.rows / 2;
-
-    // Compute distances for all points
-    Mat distances(input.size(), CV_32F);
-    for (int i = 0; i < input.rows; ++i) {
-        for (int j = 0; j < input.cols; ++j) {
-            float minDistance = std::numeric_limits<float>::max();
-            for (const auto& point : points) {
-                // Compute the distance of each point from the specified center
-                int dx = cx + point.y - j; // Distance from center in x direction
-                int dy = cy - point.x - i; // Distance from center in y direction
-                float distance = sqrt(dx*dx + dy*dy);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                }
-            }
-            distances.at<float>(i, j) = minDistance;
-        }
-    }
-
-    // Compute the Butterworth high-pass filter for each point
-    Mat butterworthFilter(input.size(), CV_32F);
-    for (int i = 0; i < input.rows; ++i) {
-        for (int j = 0; j < input.cols; ++j) {
-            butterworthFilter.at<float>(i, j) += 1.0 / (1 + pow(sqrt((distances.at<float>(i, j) * distances.at<float>(i, j)) / D0 / D0), 2 * n));
-        }
-    }
-
-    
-
-    // Apply the filter to the input image in the frequency domain
-    Mat filteredImage;
-    multiply(input, butterworthFilter, filteredImage);
-    imshow("filter", filteredImage);
-    imshow("input", input);
-    imshow("Butter", butterworthFilter);
-
-    // Convert filteredImage to spatial domain
-    Mat inverseTransform;
-    idft(filteredImage, inverseTransform, DFT_INVERSE | DFT_SCALE);
-
-    // Extract the real part (as the imaginary part should be close to zero)
-    Mat planes[2];
-    split(inverseTransform, planes);
-    output = planes[0];
-
-    // Normalize the output to [0, 1] range
-    normalize(output, output, 0, 1, NORM_MINMAX);
-}
-
-
-
+void performDFT(const Mat& input, Mat& output);
+void performIDFT(const Mat& input, Mat& output);
+void showMagnitudeSpectrum(const Mat& dftImage);
+void high_Butterworth(const Mat image, Mat& output, int n, int D0, const std::vector<Point>& points);
+void autoContrast(cv::Mat& img);
 
 int main(int argc, char *argv[]) {
     // Checking if the program arguments passage is done right
@@ -129,18 +24,14 @@ int main(int argc, char *argv[]) {
         std::cerr << "Failed to load the image!" << std::endl;
         return -1;
     }
+    int height = image.cols ;
+    int width = image.rows;
 
-    /* cv::namedWindow("Original", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Original", 360,360);
-    imshow("Original", image);
 
-    // Getting the Fourier Spectrum
-    Mat dftResult;
-    dftFunction(image, dftResult);
-    //if you want to analyze the Fourier transformation done to the original image, uncomment the next line
-    cv::namedWindow("Fourier Spectrum", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Fourier Spectrum", 360,360);
-    imshow("Fourier Spectrum", dftResult);*/
+    cv::namedWindow("Original Image", cv::WINDOW_NORMAL);
+    cv::resizeWindow("Original Image", height, width);
+    imshow("Original Image", image);
+
 
     // Add multiple points as needed
     std::vector<Point> points =  {Point(39,30),Point(-39,30),Point(78,30),Point(-78,30)};
@@ -149,13 +40,10 @@ int main(int argc, char *argv[]) {
     Mat ButterResult;
     high_Butterworth(image, ButterResult, 4, 10, points);
 
-
-
-
-    
+    autoContrast(ButterResult);
     //printing the result of the butterResult
-    namedWindow("Butterworth", cv::WINDOW_NORMAL);
-    resizeWindow("Butterworth", 360,360);
+    cv::namedWindow("Butterworth", cv::WINDOW_NORMAL);
+    cv::resizeWindow("Butterworth", height, width);
     imshow("Butterworth", ButterResult);
     
 
@@ -167,4 +55,164 @@ int main(int argc, char *argv[]) {
         }
 
     return 0;
+}
+
+
+
+void performDFT(const Mat& input, Mat& output) {
+    // Convert to floating point image
+    Mat img;
+    input.convertTo(img, CV_32F);
+
+    // Perform DFT
+    Mat dftImage;
+    dft(img, dftImage, DFT_COMPLEX_OUTPUT);
+
+    // Shift DFT
+    int cx = dftImage.cols / 2;
+    int cy = dftImage.rows / 2;
+
+    Mat q0(dftImage, Rect(0, 0, cx, cy));
+    Mat q1(dftImage, Rect(cx, 0, cx, cy));
+    Mat q2(dftImage, Rect(0, cy, cx, cy));
+    Mat q3(dftImage, Rect(cx, cy, cx, cy));
+
+    Mat tmp;
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+
+    q1.copyTo(tmp);
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+
+    output = dftImage.clone();
+}
+
+void performIDFT(const Mat& input, Mat& output) {
+    // Perform IDFT
+    Mat idftImage;
+    idft(input, idftImage, DFT_SCALE | DFT_REAL_OUTPUT);
+
+    // Shift back IDFT
+    int cx = idftImage.cols / 2;
+    int cy = idftImage.rows / 2;
+
+    Mat q0(idftImage, Rect(0, 0, cx, cy));
+    Mat q1(idftImage, Rect(cx, 0, cx, cy));
+    Mat q2(idftImage, Rect(0, cy, cx, cy));
+    Mat q3(idftImage, Rect(cx, cy, cx, cy));
+
+    Mat tmp;
+    q2.copyTo(tmp);
+    q3.copyTo(q2);
+    tmp.copyTo(q3);
+
+    q0.copyTo(tmp);
+    q1.copyTo(q0);
+    tmp.copyTo(q1);
+
+    q1.copyTo(tmp);
+    q0.copyTo(q1);
+    tmp.copyTo(q0);
+
+    q2.copyTo(tmp);
+    q3.copyTo(q2);
+    tmp.copyTo(q3);
+
+
+    // Convert to unsigned char
+    idftImage.convertTo(output, CV_8U);
+}
+
+void showMagnitudeSpectrum(const Mat& dftImage) {
+    Mat planes[2];
+    split(dftImage, planes);
+    magnitude(planes[0], planes[1], planes[0]);
+    Mat mag = planes[0];
+
+    mag += Scalar::all(1);
+    log(mag, mag);
+
+    normalize(mag, mag, 0, 1, NORM_MINMAX);
+    imshow("Magnitude Spectrum", mag);
+    waitKey(0);
+}
+
+void high_Butterworth(const Mat image, Mat& output, int n, int D0, const std::vector<Point>& points) {
+    Mat input;
+    performDFT(image, input);
+
+    // The origin
+    int cx = input.cols / 2;
+    int cy = input.rows / 2;
+
+    // Compute distances for all points
+    Mat distances(input.size(), CV_32FC2);
+    for (int i = 0; i < input.rows; ++i) {
+        for (int j = 0; j < input.cols; ++j) {
+            float minDistance = std::numeric_limits<float>::max();
+            for (const auto& point : points) {
+                // Corrected distance calculation
+                int dx = j - cx - point.y; // Distance from center in x direction
+                int dy = i - cy - point.x; // Distance from center in y direction
+                float distance = sqrt(dx*dx + dy*dy);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                }
+            }
+            distances.at<float>(i, j) = minDistance;
+        }
+    }
+
+    // Compute the Butterworth high-pass filter for each point
+    Mat butterworthFilter(input.size(), CV_32FC2);
+    for (int i = 0; i < input.rows; ++i) {
+        for (int j = 0; j < input.cols; ++j) {
+            butterworthFilter.at<float>(i, j) =  1.0 / (1 + pow(D0 / distances.at<float>(i, j), 2 * n));
+        }
+    }
+
+    Mat complexInput;
+    input.convertTo(complexInput, CV_32FC2);
+
+    Mat filteredImage(input.size(), CV_32FC2);
+    mulSpectrums(complexInput,  butterworthFilter, filteredImage, 0);
+
+    performIDFT(filteredImage,output);
+    
+}
+
+void autoContrast(cv::Mat& img) {
+    // histogram
+    cv::Mat hist;
+    float range[] = {0, 256};
+    const float* histRange = {range};
+    int histSize = 256;
+    calcHist(&img, 1, nullptr, cv::Mat(), hist, 1, &histSize, &histRange);
+
+    // Find minimum and maximum values of pixel intensity
+    int minIntensity = 0, maxIntensity = 255;
+    for (int i = 0; i < histSize; ++i) {
+        if (hist.at<float>(i) > 0) {
+            minIntensity = i;
+            break;
+        }
+    }
+    for (int i = histSize - 1; i >= 0; --i) {
+        if (hist.at<float>(i) > 0) {
+            maxIntensity = i;
+            break;
+        }
+    }
+
+    //contrast stretching = auto contrast
+    img = (img - minIntensity) * (255.0 / (maxIntensity - minIntensity));
+    img.setTo(0, img < 0);
+    img.setTo(255, img > 255);
+    img.convertTo(img, CV_8U);
+
+    //histogram equalization = auto tone 
+    double alpha = 255.0 / (maxIntensity - minIntensity);
+    img = img * alpha + minIntensity - minIntensity * alpha;
 }
