@@ -49,9 +49,10 @@ int main(int argc, char *argv[]) {
 
 
     // Saving the results in the directory (comment this section if you only testing the parameters)
+    /*
     imwrite("Sharpened_Direct_Laplacian.png", sharpened_direct);
     imwrite("Sharpened_Gaussian_0.5.png", sharpened_gaussian);
-    imwrite("Sharpened_Gaussian_1.0.png", sharpened_gaussian2);
+    imwrite("Sharpened_Gaussian_1.0.png", sharpened_gaussian2);*/
     
     waitKey(0);
 

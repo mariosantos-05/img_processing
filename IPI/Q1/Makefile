@@ -1,6 +1,6 @@
 CC = "g++"
-PROJECT = Trabalho_01
-SRC = canny_edge.cpp
+PROJECT = Questão_01
+SRC = main.cpp
 
 
 LIBS = `pkg-config opencv4 --cflags --libs`
