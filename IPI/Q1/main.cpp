@@ -91,6 +91,54 @@ void upscalling(){
     }
 }
 
+// Function to upscale an image
+void upscalling0(){
+    // Load the image
+    Mat image = imread("YUV_FRAME.png",1);
+    if (!image.empty()) {
+        int rows = image.rows;
+        int cols = image.cols;
+        int height = rows * 2;
+        int width = cols * 2;
+        Mat black_image(height, width, CV_8UC3, Scalar(0,0,0));
+
+        // Iterate through each pixel of black_image and insert every other pixel from the original image
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < cols; x++) {
+                black_image.at<Vec3b>(y * 2, x * 2) = image.at<Vec3b>(y, x);
+            }
+        }
+
+
+        // copping the pixels in each column
+        for(int x = 0; x < width-1; x++){
+            for(int y = 1; y < height-1; y+=2){
+                black_image.at<Vec3b>(y,x) = black_image.at<Vec3b>(y-1,x);
+            }  
+        }
+
+
+        // copping the pixels in each row
+        for(int y = 0; y < height-1; y++){
+            for(int x = 1; x < width-1; x+=2){
+                black_image.at<Vec3b>(y,x) = black_image.at<Vec3b>(y,x-1);
+            }
+        }
+
+        //Apply a low-pass filter
+        Mat finalImage;
+        GaussianBlur(black_image, finalImage, Size(3, 3),0);
+        
+        //Show the final upscaled image
+        namedWindow("Final Image(0)", WINDOW_NORMAL);
+        resizeWindow("Final Image(0)", width, height);
+        imshow("Final Image(0)", finalImage);
+
+    } else {
+        std::cerr << "Error: Unable to load the image." << std::endl;
+    }
+}
+
 // Function to read a video file in YUV format
 void READ_YUV_VID(const char* filename, int height, int width, int frameCount) {
     std::ifstream file(filename, std::ios::in | std::ios::binary);
@@ -121,7 +169,7 @@ void READ_YUV_VID(const char* filename, int height, int width, int frameCount) {
 
         // Show the image
         imshow("YUV Frame", bgrImg);
-        waitKey(30); // Add a short delay to display the frame (30 ms)
+        waitKey(1); // Add a short delay to display the frame (30 ms)
 
         // Save the frame as an image file (not currently used in this function)
         std::string filename = "YUV_FRAME_" + std::to_string(frame) + ".png";
@@ -143,6 +191,8 @@ int main() {
     //READ_YUV_VID(filename,height, width, 1000);
 
     // Call to upscale the frame and display the result
+    upscalling0();
+
     upscalling();
 
     // Close the windows when ESC is pressed
